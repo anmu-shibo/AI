@@ -22,6 +22,7 @@ class ChatClientConstructInvoke {
     }
 
 
+    // 测试git油箱是否正确配置
 
     @GetMapping("/ai")
     public String generation(String userInput) {
