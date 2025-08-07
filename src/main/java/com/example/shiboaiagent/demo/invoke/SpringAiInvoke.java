@@ -13,12 +13,17 @@ import org.springframework.stereotype.Component;
 @Component
 public class SpringAiInvoke implements CommandLineRunner {
 
+    /**
+     * ChatModel 注入，这里用的是dashScopeChatModel模型
+     */
     @Resource
     private ChatModel dashScopeChatModel;
     private ChatModel ollamChatModel;
 
     @Override
     public void run(String... args) throws Exception {
+
+        ////调用call方法，里面放着需要问答的内容
         AssistantMessage assistantMessage = dashScopeChatModel.call(new Prompt("你好"))
                 .getResult()
                 .getOutput();
