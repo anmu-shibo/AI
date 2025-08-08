@@ -9,6 +9,19 @@ server:
     context-path: /api
 
 
+# 日志配置
+logging:
+  level:
+    com.example.shiboaiagent: DEBUG
+    org.springframework.ai: INFO
+    org.springframework.web: INFO
+    root: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/application.log
+
 # springdoc-openapi????
 springdoc:
   swagger-ui:
