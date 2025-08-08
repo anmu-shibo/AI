@@ -167,4 +167,117 @@ public class SpringAiInvoke implements CommandLineRunner {
         System.out.println(string);
     }
 ```
+## 2.怎么实现多轮对话
 
+疑问：默认是使用哪个model？
+
+责任链模式的设计思想
+
+### 2.1 ChatClient
+
+1.ChatClient的创建方式
+
+- 构造器注入方式
+
+注意：很多情况下，ChatClient是一个接口或者需要通过Builder模式创建的类，而不是一个可以直接注入的Spring Bean。所以常用构造器注入
+
+```Java
+    private final ChatClient chatClient;
+
+    /**
+     * 构造器注入
+     * @param chatClientBuilder
+     */
+    public ChatClientInvoke(ChatClient.Builder chatClientBuilder) {
+        //为什么没有配置chatModel，因为自动注入的chatClientBuilder已经指定了chatModel，这里的应该是dashScopeChatModel
+        this.chatClient = chatClientBuilder
+                .defaultSystem("你是一位心理医生")
+                .build();
+    }
+
+    @GetMapping("/ai")
+    public String generation(String userInput) {
+        return this.chatClient.prompt()
+                .user(userInput)
+                .call()
+                .content();
+    }
+```
+
+- 使用建造者模式
+
+```Java
+@Component
+public class ChatClientBuilderInvoke implements CommandLineRunner {
+
+    @Resource
+    private ChatModel dashScopeChatModel;
+
+    private ChatClient chatClient;
+    private String result;
+
+    @PostConstruct
+    public void init() {
+        //这里使用了建造者模式手动构造了chatClient，并将chatmodel设置成dashScopeChatModel,并将默认系统设置为心理医生
+        chatClient = ChatClient.builder(dashScopeChatModel)
+                .defaultSystem("你是一位心理医生")
+                .build();
+    }
+
+    public void executeChat() {
+        result = chatClient.prompt()
+            .user("你好,我现在有点焦虑")
+            .call()
+            .content();
+        System.out.println("AI回复: " + result);
+    }
+
+    @Override
+    public void run(String... args) throws Exception {
+        executeChat();
+    }
+}
+```
+
+2.ChatClient和ChatModel的区别
+
+- ChatModel只需要注入即可直接调用call方法实现ai对话
+
+```Java
+	@Resource
+    private ChatModel dashScopeChatModel;
+    //调用call方法，里面放着需要问答的内容
+    AssistantMessage assistantMessage = dashScopeChatModel.call(new Prompt("你好"))
+                .getResult()
+                .getOutput();
+```
+
+- ChatClient支持更复杂灵活的链式调用
+
+```Java
+        result = chatClient.prompt()
+            .user("你好,我现在有点焦虑")
+            .call()
+            .content();
+```
+
+### 2.2 拦截器advisor
+
+1. 概念：Spring AI 使用 [Advisors](https://docs.spring.io/spring-ai/reference/api/advisors.html)（顾问）机制来增强 AI 的能力，可以理解为一系列可插拔的拦截器，在调用 AI 前和调用 AI 后可以执行一些额外的操作，比如：
+
+    - 前置增强：调用 AI 前改写一下 Prompt 提示词、检查一下提示词是否安全
+
+    - 后置增强：调用 AI 后记录一下日志、处理一下返回的结果
+
+2. 用法：chatClient指定默认拦截器的方式
+
+```Java
+var chatClient = ChatClient.builder(chatModel)
+    .defaultAdvisors(
+        new MessageChatMemoryAdvisor(chatMemory), // 对话记忆 advisor
+        new QuestionAnswerAdvisor(vectorStore)    // RAG 检索增强 advisor
+    )
+    .build();
+```
+
+Chat Memory
