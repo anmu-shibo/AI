@@ -1,42 +1,20 @@
 package com.example.shiboaiagent.app;
 
-
 import com.example.shiboaiagent.advisor.MySimpleLoggerAdvisor;
+import com.example.shiboaiagent.chatmemoryrepository.FileChatMemoryRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
-import org.springframework.ai.chat.memory.ChatMemoryRepository;
-import org.springframework.ai.chat.memory.InMemoryChatMemoryRepository;
 import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.chat.memory.ChatMemoryRepository;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.stereotype.Component;
-
 import java.util.List;
 
-import static org.springframework.ai.chat.memory.ChatMemory.DEFAULT_CONVERSATION_ID;
-
-
-/**
- * 心理医生聊天应用 - 基于Spring AI的智能医疗咨询系统
- *
- * 主要功能：
- * 1. 提供基础的医疗咨询对话
- * 2. 生成结构化的诊断报告
- * 3. 维护对话记忆和上下文
- * 4. 记录完整的交互日志
- *
- * 技术特点：
- * - 使用 MessageWindowChatMemory 实现滑动窗口记忆
- * - 支持多用户会话隔离
- * - 集成自定义日志记录顾问
- * - 支持结构化数据输出
- */
 
 @Slf4j
-@Component
-public class PsychiatristApp {
-
+// @Component  // 暂时注释掉，避免与 PsychiatristApp 冲突
+public class PsychiatristApp4FileChatMemory {
     /** 聊天客户端 - Spring AI的核心组件，负责与AI模型交互 */
     private ChatClient chatClient;
 
@@ -48,27 +26,34 @@ public class PsychiatristApp {
 
     /** 诊断专用系统提示词 - 用于生成结构化诊断报告 */
     private final String DIAGNOSTIC_SYSTEM_PROMPT = """
-        你是一位专业的{occupation}，请根据患者的症状和描述进行分析。
-        在每次对话后，都要生成一份诊断报告，格式如下：
+        你是一位专业的{occupation}，请根据患者的症状和描述进行专业分析。
         
-        标题：{用户名}的诊断报告
+        重要要求：
+        1. 仔细分析患者提到的具体症状（如失眠、头痛、焦虑等）
+        2. 针对症状给出专业、实用的诊断建议
+        3. 避免给出通用或模糊的建议
+        4. 如果症状严重，建议就医检查
+        
+        请生成一份诊断报告，格式如下：
+        
+        标题：患者的诊断报告
         诊断建议：
-        1. [具体建议1]
-        2. [具体建议2]
-        3. [具体建议3]
-        ...
+        1. [针对具体症状的专业建议1]
+        2. [针对具体症状的专业建议2] 
+        3. [针对具体症状的专业建议3]
         
-        请确保建议具体、专业且实用。
+        示例：如果患者说失眠，应该给出改善睡眠质量、睡前习惯、作息调整等具体建议。
         """;
 
     /**
      * 构造函数 - 初始化心理医生聊天客户端
      * @param dashScopeChatModel DashScope聊天模型，用于AI对话
      */
-    public PsychiatristApp(ChatModel dashScopeChatModel) {
+    public PsychiatristApp4FileChatMemory(ChatModel dashScopeChatModel) {
 
-        // 1. 创建内存聊天记忆仓库 - 负责在内存中存储对话数据
-        ChatMemoryRepository chatMemoryRepository = new InMemoryChatMemoryRepository();
+        String fileDir = System.getProperty("user.dir") + "/tmp/chat_memory";
+        // 1. 初始化文件聊天内存仓库 - 存储对话历史和上下文
+        ChatMemoryRepository chatMemoryRepository = new FileChatMemoryRepository(fileDir);
 
         // 2. 初始化滑动窗口聊天内存 - 最多保存10条消息，超出后自动删除最旧的消息
         chatMemory = MessageWindowChatMemory.builder()
@@ -90,31 +75,11 @@ public class PsychiatristApp {
     }
 
     /**
-     * 基础聊天方法 - 与AI进行简单对话
-     * @param message 用户输入的消息
-     * @param chatId 对话会话ID，用于区分不同用户/会话的记忆
-     * @return AI的回复内容
-     */
-    public String doChat(String message, String chatId) {
-        String content = chatClient.prompt()
-                .system(sp -> sp.param("occupation","医生"))  // 设置AI角色为医生
-                .user(message)                               // 用户消息
-                .advisors(advisorSpec -> advisorSpec.param(DEFAULT_CONVERSATION_ID, chatId))  // 指定会话ID
-                .call()     // 同步调用
-                .content(); // 获取响应内容
-
-        // log.info("chatId: {}，content: {}", chatId, content);
-        return content;
-    }
-
-
-
-    /**
      * 诊断结果报告数据结构
      * @param title 诊断报告标题
      * @param suggestions 诊断建议列表
      */
-    record DiagnosticResultsReport(String title, List<String> suggestions) {}
+    record DiagnosticResultsReport4FileRepository(String title, List<String> suggestions) {}
 
     /**
      * 生成诊断报告的聊天方法 - 返回结构化的诊断结果
@@ -122,15 +87,15 @@ public class PsychiatristApp {
      * @param chatId 对话会话ID，用于维护对话上下文
      * @return 包含标题和建议列表的诊断报告
      */
-    public DiagnosticResultsReport doChatWithOutPut(String message, String chatId) {
-        DiagnosticResultsReport diagnosticResultsReport = chatClient.prompt()
+    public DiagnosticResultsReport4FileRepository doChatWithOutPut(String message, String chatId) {
+        DiagnosticResultsReport4FileRepository diagnosticResultsReport = chatClient.prompt()
                 .system(sp -> sp
                         .text(DIAGNOSTIC_SYSTEM_PROMPT)              // 使用诊断专用的系统提示词
-                        .param("occupation", "医生"))              // 设置AI角色
+                        .param("occupation", "医生"))                // 设置AI角色
                 .user(message)                                   // 用户症状描述
-                .advisors(advisorSpec -> advisorSpec.param(DEFAULT_CONVERSATION_ID, chatId))  // 指定会话ID
+                .advisors(advisorSpec -> advisorSpec.param(ChatMemory.CONVERSATION_ID, chatId))  // 指定会话ID
                 .call()                                          // 同步调用
-                .entity(DiagnosticResultsReport.class);         // 将响应转换为结构化对象
+                .entity(DiagnosticResultsReport4FileRepository.class);         // 将响应转换为结构化对象
 
         log.info("诊断报告生成完成: {}", diagnosticResultsReport);
         return diagnosticResultsReport;

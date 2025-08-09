@@ -2,7 +2,6 @@ package com.example.shiboaiagent.app;
 
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
@@ -24,5 +23,10 @@ class PsychiatristAppTest {
         psychiatristApp.doChat(message, "123");
         message = "我昨天熬了个夜，对身体有影响吗";
         psychiatristApp.doChat(message, "123");
+    }
+
+    @Test
+    public void test1() {
+        psychiatristApp.doChatWithOutPut("我是史博，我最近有点失眠，但我不知道该怎么做", UUID.randomUUID().toString());
     }
 }
