@@ -2,21 +2,31 @@ package com.example.shiboaiagent.app;
 
 import com.example.shiboaiagent.advisor.MySimpleLoggerAdvisor;
 import com.example.shiboaiagent.chatmemoryrepository.FileChatMemoryRepository;
+import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
+import org.springframework.ai.chat.client.advisor.api.Advisor;
+import org.springframework.ai.chat.client.advisor.vectorstore.QuestionAnswerAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.ChatMemoryRepository;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.stereotype.Component;
+
 import java.util.List;
 
 import static org.springframework.ai.chat.memory.ChatMemory.CONVERSATION_ID;
 
 
 @Slf4j
-// @Component  // 暂时注释掉，避免与 PsychiatristApp 冲突
-public class PsychiatristApp4FileChatMemory {
+//@Component  // 暂时注释掉，避免与 PsychiatristApp 冲突
+public class PsychiatristApp4PdfDocument {
+
+    //将向量数据库注入到聊天客户端中，以便在对话过程中使用
+    @Resource
+    private VectorStore pagePdfVectorStore;
     /** 聊天客户端 - Spring AI的核心组件，负责与AI模型交互 */
     private ChatClient chatClient;
 
@@ -53,7 +63,7 @@ public class PsychiatristApp4FileChatMemory {
      * 构造函数 - 初始化心理医生聊天客户端
      * @param dashScopeChatModel DashScope聊天模型，用于AI对话
      */
-    public PsychiatristApp4FileChatMemory(ChatModel dashScopeChatModel) {
+    public PsychiatristApp4PdfDocument(ChatModel dashScopeChatModel) {
 
         String fileDir = System.getProperty("user.dir") + "/tmp/chat_memory";
         // 1. 初始化文件聊天内存仓库 - 存储对话历史和上下文
@@ -73,7 +83,11 @@ public class PsychiatristApp4FileChatMemory {
                         MessageChatMemoryAdvisor.builder(chatMemory)
                                 .build(),
                         // 日志顾问 - 负责记录请求和响应日志
-                        new MySimpleLoggerAdvisor()
+                        new MySimpleLoggerAdvisor(),
+                        //向量数据库存储的是 AI 模型无法感知的数据。当用户问题发送给 AI 模型时，
+                        //QuestionAnswerAdvisor会查询向量数据库，查找与用户问题相关的文档
+                        //来自向量数据库的响应被附加到用户文本中，为 AI 模型生成响应提供上下文
+                        new QuestionAnswerAdvisor(pagePdfVectorStore)
                 )
                 .build();
     }
@@ -91,7 +105,7 @@ public class PsychiatristApp4FileChatMemory {
      * @param chatId 对话会话ID，用于维护对话上下文
      * @return 包含标题和建议列表的诊断报告
      */
-    public DiagnosticResultsReport4FileRepository doChatWithOutPut(String message, String chatId) {
+    public DiagnosticResultsReport4FileRepository doChatWithRag(String message, String chatId) {
         DiagnosticResultsReport4FileRepository diagnosticResultsReport = chatClient.prompt()
                 .system(sp -> sp
                         .text(DIAGNOSTIC_SYSTEM_PROMPT)              // 使用诊断专用的系统提示词

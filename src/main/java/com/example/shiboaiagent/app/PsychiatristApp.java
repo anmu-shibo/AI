@@ -5,6 +5,7 @@ import com.example.shiboaiagent.advisor.MySimpleLoggerAdvisor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
+import org.springframework.ai.chat.client.advisor.vectorstore.QuestionAnswerAdvisor;
 import org.springframework.ai.chat.memory.ChatMemoryRepository;
 import org.springframework.ai.chat.memory.InMemoryChatMemoryRepository;
 import org.springframework.ai.chat.memory.ChatMemory;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
+import static org.springframework.ai.chat.memory.ChatMemory.CONVERSATION_ID;
 import static org.springframework.ai.chat.memory.ChatMemory.DEFAULT_CONVERSATION_ID;
 
 
@@ -99,11 +101,11 @@ public class PsychiatristApp {
         String content = chatClient.prompt()
                 .system(sp -> sp.param("occupation","医生"))  // 设置AI角色为医生
                 .user(message)                               // 用户消息
-                .advisors(advisorSpec -> advisorSpec.param(DEFAULT_CONVERSATION_ID, chatId))  // 指定会话ID
+                .advisors(advisorSpec -> advisorSpec.param(CONVERSATION_ID, chatId))  // 指定会话ID
                 .call()     // 同步调用
                 .content(); // 获取响应内容
 
-        // log.info("chatId: {}，content: {}", chatId, content);
+         log.info("chatId: {}，content: {}", chatId, content);
         return content;
     }
 
@@ -128,7 +130,7 @@ public class PsychiatristApp {
                         .text(DIAGNOSTIC_SYSTEM_PROMPT)              // 使用诊断专用的系统提示词
                         .param("occupation", "医生"))              // 设置AI角色
                 .user(message)                                   // 用户症状描述
-                .advisors(advisorSpec -> advisorSpec.param(DEFAULT_CONVERSATION_ID, chatId))  // 指定会话ID
+                .advisors(advisorSpec -> advisorSpec.param(CONVERSATION_ID, chatId))  // 指定会话ID
                 .call()                                          // 同步调用
                 .entity(DiagnosticResultsReport.class);         // 将响应转换为结构化对象
 
